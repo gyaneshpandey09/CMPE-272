@@ -1,0 +1,36 @@
+---
+- hosts: webserver 
+  sudo: yes
+
+  vars:
+    http_port: 80
+
+  tasks:
+
+    - name: install  apache and Git
+      apt: name={{ item }} update_cache=yes state=latest
+      with_items:
+        - apache2
+        - git
+
+    - name: enabled mod_rewrite
+      apache2_module: name=rewrite state=present
+      notify:
+        - restart apache2
+
+    - name: apache to listen on port {{ http_port }}
+      lineinfile: dest=/etc/apache2/ports.conf regexp="^Listen " line="Listen {{ http_port }}" state=present
+      notify:
+        - restart apache2
+
+    - name: apache virtualhost configured on port {{ http_port }}
+      lineinfile: dest=/etc/apache2/sites-available/000-default.conf regexp="^<VirtualHost \*:" line="<VirtualHost *:{{ http_port }}>"
+      notify:
+        - restart apache2
+
+    - name: copy hello world file
+      git: repo=https://github.com/ShaliniMNarang/EntSWPlatforms.git dest=/var/www/html/EntSWPlatforms update=yes force=yes
+
+  handlers:
+    - name: restart apache2
+      service: name=apache2 state=restarted
